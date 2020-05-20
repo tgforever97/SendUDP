@@ -12,7 +12,7 @@ configure_file(
         @ONLY
 )
 
-add_executable(SendUDP main.cpp include/UdpServer.h include/UdpClient.h src/UdpServer.cpp src/UdpClient.cpp)
+add_executable(SendUDP src/main.cpp include/UdpServer.h include/UdpClient.h src/UdpServer.cpp src/UdpClient.cpp src/cmdParse.cpp)
 
 target_include_directories( ${PROJECT_NAME}
         PRIVATE
