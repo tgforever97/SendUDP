@@ -24,16 +24,19 @@ class UdpServer{
 public:
     explicit UdpServer(int port);
 
-    int recvAndSend();
+    void rttServer();
+
+    void bandWidthServer();
 
     void freeAll();
+
+    std::atomic<int> testIdGen{1};
 
 private:
     struct sockaddr_in myAddr;
     struct sockaddr_in remAddr;
     int fd;
-    unsigned char buffer[BUFSIZE];
-    unsigned char sendMsg[10] = "got msg..";
+    uint8_t buffer[BUFSIZE];
 };
 
 #endif //SENDUDP_UDPSERVER_H

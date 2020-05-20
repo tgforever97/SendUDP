@@ -1,6 +1,7 @@
 #include <seeker/loggerApi.h>
 #include "config.h"
 #include "UdpServer.h"
+#include "Message.h"
 
 using std::runtime_error;
 
@@ -22,33 +23,49 @@ UdpServer::UdpServer(int port) {
     }
 }
 
-int UdpServer::recvAndSend() {
-    auto len = sizeof(remAddr);
-    for(;;){
-        auto recvLen = recvfrom(fd, buffer, sizeof(buffer), 0, (struct sockaddr *)&remAddr,
-                                 (socklen_t *)&len);
-        if(recvLen < 0){
-            E_LOG("recvfrom error:");
-            return 0;
-        }
-        I_LOG("recv msg from client msgLen={}", recvLen);
-        auto sendLen = sendto(fd, sendMsg, sizeof(sendMsg), 0, (struct sockaddr *)&remAddr, len);
-        if(sendLen < 0){
-            E_LOG("sendto error:");
-            return 0;
-        }
-        I_LOG("send msg to client msgLen={}", sendLen);
-    }
-}
-
 void UdpServer::freeAll() {
-    free(&myAddr);
-    free(buffer);
     close(fd);
 }
 
-//UdpServer::~UdpServer() {
-////    free(&myAddr);
-//    free(buffer);
-//    close(fd);
-//}
+void UdpServer::rttServer() {
+    auto len = sizeof(remAddr);
+    for(;;){
+        auto recvLen = recvfrom(fd, buffer, sizeof(buffer), 0, (struct sockaddr *)&remAddr,
+                                (socklen_t *)&len);
+        if(recvLen < 0){
+            E_LOG("recvfrom error:");
+            exit(0);
+        }
+        uint8_t msgType;
+        Message::getMsgType(buffer, msgType);
+        int msgId = 0;
+        Message::getMsgId(buffer, msgId);
+        switch ((MessageType)msgType) {
+            case MessageType::testRequest: {
+                TestRequest req(buffer);
+                I_LOG("Got TestRequest, msgId={}, testType={}", req.msgId, (int)req.testType);
+                TestConfirm response(1, testIdGen.fetch_add(1), req.msgId, Message::genMid());
+                I_LOG("Reply Msg TestConfirm, msgId={}, testType={}, rst={}", response.msgId,
+                      (int)response.msgType, response.result);
+                Message::sendMsg(response, fd, (struct sockaddr *)&remAddr, len);
+                break;
+            }
+            case MessageType::rttTestMsg: {
+                auto sendLen = sendto(fd, buffer, sizeof(buffer), 0, (struct sockaddr *)&remAddr, len);
+                if(sendLen < 0){
+                    E_LOG("sendto error:");
+                    throw std::runtime_error("sendro failed");
+                }
+                D_LOG("Reply rttTestMsg, msgId={}", msgId);
+                break;
+            }
+            default:
+                W_LOG("Got unknown msg, ignore it. msgType={}, msgId={}", msgType, msgId);
+                break;
+        }
+        memset(buffer, 0, recvLen);
+    }
+}
+
+
+

@@ -26,7 +26,7 @@ class UdpClient{
 public:
     explicit UdpClient(const string& ip, int port);
 
-    int sendAndRecv();
+    void rttClient(int testTimes, int packetSize);
 
     void freeAll();
 
