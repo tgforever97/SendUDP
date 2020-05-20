@@ -115,31 +115,56 @@ void UdpClient::bandWidthClient(uint32_t bandwidth, char bandwidthUnit, int pack
 
     auto packetsPerSecond = bandWidthReal / packetSize;
     auto packetsSendInterval = 1000 / packetsPerSecond;
-    auto totalPackets = packetsPerSecond * testSeconds;
-    I_LOG("bandwidthValue={}, packetsPerSecond={}, packetsendInterval={}, totalPackets={}",
+    I_LOG("bandwidthValue={}, packetsPerSecond={}, packetsendInterval={}",
           bandWidthReal,
           packetsPerSecond,
-          packetsSendInterval,
-          totalPackets);
+          packetsSendInterval);
 
     BandwidthTestMsg msg(packetSize, testId, 0, Message::genMid());
     msg.getBinary(sendBuffer, MSG_SEND_BUF_SIZE);
 
     auto totalLen = 0;
+    auto totalPackets = 0;
 
-    for(int i = 0; i < totalPackets; i++){
-        int64_t startTime = seeker::Time::currentTime();
-        BandwidthTestMsg::update(sendBuffer, Message::genMid(), i, seeker::Time::microTime());
+    int64_t startTime = seeker::Time::currentTime();
+    int64_t endTime = startTime + (int64_t)testSeconds * 1000;
+
+    while(startTime < endTime){
+        BandwidthTestMsg::update(sendBuffer, Message::genMid(), totalPackets, seeker::Time::microTime());
         auto sendLen = sendto(fd, sendBuffer, msg.getLength(), 0, (struct sockaddr *)&serverAddr, addrLen);
         if(sendLen < 0){
             E_LOG("send bandWidthmsg error..");
             throw std::runtime_error("send bandWidthmsg error..");
         }
         totalLen += sendLen;
+        totalPackets += 1;
         int64_t processTime = seeker::Time::currentTime() - startTime;
-        std::this_thread::sleep_for(std::chrono::milliseconds(packetsSendInterval - processTime));
+        if(processTime > 0){
+            std::this_thread::sleep_for(std::chrono::milliseconds(packetsSendInterval - processTime));
+        }
+        startTime = seeker::Time::currentTime();
     }
 
+    BandwidthFinish finishMsg(testId, totalPackets, Message::genMid());
+    Message::sendMsg(finishMsg, fd, (struct sockaddr *)&serverAddr, addrLen);
+    recvLen = recvfrom(fd, buffer, BUFSIZE, 0, (struct sockaddr *)&serverAddr, &addrLen);
+    if(recvLen < 0){
+        E_LOG("recv msg error!");
+        throw std::runtime_error("recv msg from server..");
+    }
+    BandwidthReport report(buffer);
+    I_LOG("bandwidth test report:");
+    I_LOG("[ ID] Transfer    Bandwidth     Jitter   Lost/Total Datagrams");
+    int lossPkt = totalPackets - report.receivedPkt;
+    I_LOG("[{}]  {}    {}     {}ms   {}/{} ({:.{}f}%)",
+          testId,
+          totalLen,
+          totalLen / testSeconds,
+          (double)report.jitterMicroSec / 1000,
+          lossPkt,
+          totalPackets,
+          (double)100 * lossPkt / totalPackets,
+          4);
 }
 
 
