@@ -27,7 +27,7 @@ void UdpServer::freeAll() {
     close(fd);
 }
 
-void UdpServer::rttServer() {
+void UdpServer::startServer() {
     auto len = sizeof(remAddr);
     for(;;){
         auto recvLen = recvfrom(fd, buffer, sizeof(buffer), 0, (struct sockaddr *)&remAddr,
@@ -44,7 +44,7 @@ void UdpServer::rttServer() {
             case MessageType::testRequest: {
                 TestRequest req(buffer);
                 I_LOG("Got TestRequest, msgId={}, testType={}", req.msgId, (int)req.testType);
-                TestConfirm response(1, testIdGen.fetch_add(1), req.msgId, Message::genMid());
+                TestConfirm response(1, nextTestId.fetch_add(1), req.msgId, Message::genMid());
                 I_LOG("Reply Msg TestConfirm, msgId={}, testType={}, rst={}", response.msgId,
                       (int)response.msgType, response.result);
                 Message::sendMsg(response, fd, (struct sockaddr *)&remAddr, len);
@@ -66,6 +66,8 @@ void UdpServer::rttServer() {
         memset(buffer, 0, recvLen);
     }
 }
+
+
 
 
 

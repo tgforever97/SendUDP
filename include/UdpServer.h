@@ -22,17 +22,21 @@ using std::string;
 class UdpServer{
 
 public:
-    explicit UdpServer(int port);
+    UdpServer(int port);
 
-    void rttServer();
+    UdpServer(UdpServer server);
+
+    void startServer();
 
     void bandWidthServer();
 
     void freeAll();
 
-    std::atomic<int> testIdGen{1};
+    int genTestId();
+
 
 private:
+    std::atomic<int> nextTestId{0};
     struct sockaddr_in myAddr;
     struct sockaddr_in remAddr;
     int fd;

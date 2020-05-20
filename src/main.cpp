@@ -16,7 +16,8 @@ int main(int argc, char* argv[]) {
 
     if (result.count("s")) {
         int port = result["p"].as<int>();
-        // todo: start a server
+        UdpServer server(port);
+        server.startServer();
     } else if (result.count("c")) {
         string host = result["c"].as<string>();
         int port = result["p"].as<int>();
@@ -44,7 +45,8 @@ int main(int argc, char* argv[]) {
                     return -1;
             }
         } else {
-            //todo:start rtt test
+            UdpClient client(host, port);
+            client.rttClient(10, 64);
         }
 
     } else {

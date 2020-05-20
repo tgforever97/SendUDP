@@ -28,6 +28,8 @@ public:
 
     void rttClient(int testTimes, int packetSize);
 
+    void bandWidthClient(uint32_t bandwidth, char bandwidthUnit, int packetSize, int testSeconds);
+
     void freeAll();
 
 private:
@@ -35,7 +37,7 @@ private:
     struct sockaddr_in serverAddr;
     int fd;
     unsigned char buffer[BUFSIZE];
-    unsigned char sendBuffer[10] = "send msg.";
+    unsigned char sendBuffer[BUFSIZE];
 };
 
 #endif //SENDUDP_UDPCLIENT_H
