@@ -10,7 +10,6 @@ UdpServer::UdpServer(int port) {
     myAddr.sin_family = AF_INET;
     myAddr.sin_addr.s_addr = htonl(INADDR_ANY);
     myAddr.sin_port = htons(port);
-    memset(buffer, 0, sizeof(buffer));
 
     if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         E_LOG("cannot create socket\n");
@@ -28,6 +27,7 @@ void UdpServer::freeAll() {
 }
 
 void UdpServer::startServer() {
+    uint8_t buffer[BUFSIZE];
     auto len = sizeof(remAddr);
     for(;;){
         auto recvLen = recvfrom(fd, buffer, sizeof(buffer), 0, (struct sockaddr *)&remAddr,
@@ -48,6 +48,9 @@ void UdpServer::startServer() {
                 I_LOG("Reply Msg TestConfirm, msgId={}, testType={}, rst={}", response.msgId,
                       (int)response.msgType, response.result);
                 Message::sendMsg(response, fd, (struct sockaddr *)&remAddr, len);
+                if(req.testType == (int)TestType::bandwidth){
+                    bandWidthServer();
+                }
                 break;
             }
             case MessageType::rttTestMsg: {
@@ -65,6 +68,73 @@ void UdpServer::startServer() {
         }
         memset(buffer, 0, recvLen);
     }
+}
+
+void UdpServer::bandWidthServer() { //带宽，丢包，抖动
+    uint8_t buffer[BUFSIZE];
+    memset(buffer, 0 ,BUFSIZE);
+    auto len = sizeof(remAddr);
+
+    uint64_t recvByte = 0;
+    int64_t maxDelay = 0;
+    int64_t minDelay = 0;
+    int64_t delay = 0;
+    int packetCount = 0;
+    int64_t lastArrivalTime = 0;
+    int64_t startTime = -1;
+
+    for(;;){
+        auto recvLen = recvfrom(fd, buffer, BUFSIZE, 0, (struct sockaddr *)&remAddr,
+                                (socklen_t *)&len);
+        if(recvLen < 0){
+            E_LOG("recvfrom error:");
+            throw std::runtime_error("recvffrom error..");
+        }
+        uint8_t msgType;
+        Message::getMsgType(buffer, msgType);
+        int msgId;
+        Message::getMsgId(buffer, msgId);
+        uint16_t testId;
+        Message::getTestId(buffer, testId);
+        int64_t timestamp;
+        Message::getTimestamp(buffer, timestamp);
+        int testNum;
+        BandwidthTestMsg::getTestNum(buffer, testNum);
+
+        if(msgType == (uint8_t)MessageType::bandwidthTestMsg){
+            T_LOG("receive a BandwidthTestMsg, testNum={}", testNum);
+            recvByte += recvLen;
+
+            lastArrivalTime = seeker::Time::currentTime();
+            if(startTime < 0){
+                startTime = lastArrivalTime;
+            }
+
+            delay = seeker::Time::microTime() - timestamp;
+            if (delay < minDelay) minDelay = delay;
+            if (delay > maxDelay) maxDelay = delay;
+
+            packetCount++;
+        }else if(msgType == (uint8_t)MessageType::bandwidthFinish){
+            int totalPacket;
+            BandwidthFinish::getTotalPkt(buffer, totalPacket);
+            int lossPkt = totalPacket - packetCount;
+            int64_t jitter = maxDelay - minDelay;
+            I_LOG("bandwidth test report:");
+            I_LOG("[ ID] Transfer    Bandwidth      Jitter   totlaReceivePkt loss/Total");
+            I_LOG("[{}]   {}     {}     {}ms   {}", testId,
+                  recvByte,
+                  recvByte/(lastArrivalTime - startTime), (double)jitter / 1000,
+                  packetCount,
+                  lossPkt/totalPacket);
+            BandwidthReport report(jitter, packetCount, recvByte, testId, Message::genMid());
+            Message::sendMsg(report, fd, (struct sockaddr *)&remAddr, len);
+            break;
+        }else{
+            W_LOG("Got a unexpected msg. msgId={} msgType={}", msgId,msgType);
+        }
+    }
+    I_LOG("bandwidth finished");
 }
 
 

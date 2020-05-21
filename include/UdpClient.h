@@ -36,8 +36,6 @@ private:
     struct sockaddr_in myAddr;
     struct sockaddr_in serverAddr;
     int fd;
-    unsigned char buffer[BUFSIZE];
-    unsigned char sendBuffer[BUFSIZE];
 };
 
 #endif //SENDUDP_UDPCLIENT_H

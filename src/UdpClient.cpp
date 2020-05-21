@@ -11,8 +11,6 @@ UdpClient::UdpClient(const string& ip, int port) {
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = inet_addr(ip.c_str());
     serverAddr.sin_port = htons(port);
-
-    memset(buffer, 0, BUFSIZE);
     memset(sendBuffer, 0, BUFSIZE);
 
     fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -23,6 +21,8 @@ UdpClient::UdpClient(const string& ip, int port) {
     }
 }
  void UdpClient::rttClient(int testTimes, int packetSize) {
+    uint8_t buffer[BUFSIZE];
+    memset(buffer, 0, BUFSIZE);
     auto addrLen = (socklen_t)(sizeof(serverAddr));
     TestRequest req(TestType::rtt, 0, Message::genMid());
     Message::sendMsg(req, fd, (struct sockaddr *)&serverAddr, addrLen);
@@ -65,11 +65,15 @@ UdpClient::UdpClient(const string& ip, int port) {
 
 void UdpClient::freeAll() {
     free(&serverAddr);
-    free(buffer);
     close(fd);
 }
 
 void UdpClient::bandWidthClient(uint32_t bandwidth, char bandwidthUnit, int packetSize, int testSeconds) {
+    uint8_t buffer[BUFSIZE];
+    memset(buffer, 0, BUFSIZE);
+    uint8_t sendBuffer[BUFSIZE];
+    memset(sendBuffer, 0, BUFSIZE);
+
     auto addrLen = (socklen_t)(sizeof(serverAddr));
     TestRequest req(TestType::bandwidth, 0, Message::genMid());
     Message::sendMsg(req, fd, (struct sockaddr *)&serverAddr, addrLen);

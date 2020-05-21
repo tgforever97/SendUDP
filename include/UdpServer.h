@@ -24,8 +24,6 @@ class UdpServer{
 public:
     UdpServer(int port);
 
-    UdpServer(UdpServer server);
-
     void startServer();
 
     void bandWidthServer();
@@ -40,7 +38,6 @@ private:
     struct sockaddr_in myAddr;
     struct sockaddr_in remAddr;
     int fd;
-    uint8_t buffer[BUFSIZE];
 };
 
 #endif //SENDUDP_UDPSERVER_H
