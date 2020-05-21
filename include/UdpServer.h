@@ -16,7 +16,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
-#define BUFSIZE 20
+#define BUFSIZE 2048
 
 using std::string;
 class UdpServer{

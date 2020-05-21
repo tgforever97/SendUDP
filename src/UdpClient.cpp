@@ -11,7 +11,6 @@ UdpClient::UdpClient(const string& ip, int port) {
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = inet_addr(ip.c_str());
     serverAddr.sin_port = htons(port);
-    memset(sendBuffer, 0, BUFSIZE);
 
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if(fd < 0)
@@ -129,25 +128,22 @@ void UdpClient::bandWidthClient(uint32_t bandwidth, char bandwidthUnit, int pack
 
     auto totalLen = 0;
     auto totalPackets = 0;
+    int64_t passedTime = 0;
 
-    int64_t startTime = seeker::Time::currentTime();
-    int64_t endTime = startTime + (int64_t)testSeconds * 1000;
+    auto startTime = seeker::Time::currentTime();
 
-    while(startTime < endTime){
-        BandwidthTestMsg::update(sendBuffer, Message::genMid(), totalPackets, seeker::Time::microTime());
-        auto sendLen = sendto(fd, sendBuffer, msg.getLength(), 0, (struct sockaddr *)&serverAddr, addrLen);
-        if(sendLen < 0){
-            E_LOG("send bandWidthmsg error..");
-            throw std::runtime_error("send bandWidthmsg error..");
+    std::thread worker(std::mem_fn(&UdpClient::sendBandWidthMsg), std::ref(*this), sendBuffer, std::ref(totalPackets), std::ref(totalLen), msg.getLength());
+
+    while(totalPackets < testSeconds * packetsPerSecond){
+        {
+            std::lock_guard<std::mutex> lock(m);
+            startSend = 1;
         }
-        totalLen += sendLen;
-        totalPackets += 1;
-        int64_t processTime = seeker::Time::currentTime() - startTime;
-        if(processTime > 0){
-            std::this_thread::sleep_for(std::chrono::milliseconds(packetsSendInterval - processTime));
-        }
-        startTime = seeker::Time::currentTime();
+        cv.notify_one();
+        std::this_thread::sleep_for(std::chrono::milliseconds(packetsSendInterval));
+        D_LOG("startTime {}", seeker::Time::currentTime());
     }
+    passedTime = seeker::Time::currentTime() - startTime;
 
     BandwidthFinish finishMsg(testId, totalPackets, Message::genMid());
     Message::sendMsg(finishMsg, fd, (struct sockaddr *)&serverAddr, addrLen);
@@ -160,16 +156,51 @@ void UdpClient::bandWidthClient(uint32_t bandwidth, char bandwidthUnit, int pack
     I_LOG("bandwidth test report:");
     I_LOG("[ ID] Transfer    Bandwidth     Jitter   Lost/Total Datagrams");
     int lossPkt = totalPackets - report.receivedPkt;
-    I_LOG("[{}]  {}    {}     {}ms   {}/{} ({:.{}f}%)",
+    I_LOG("[{}]  {}    {}bytes/s     {}ms   {}/{} ({:.{}f}%)",
           testId,
           totalLen,
-          totalLen / testSeconds,
+          totalLen/passedTime,
           (double)report.jitterMicroSec / 1000,
           lossPkt,
           totalPackets,
           (double)100 * lossPkt / totalPackets,
           4);
+    {
+        std::lock_guard<std::mutex> lock(m);
+        startSend = -1;
+    }
+    cv.notify_one();
+
+    worker.join();
 }
+
+void UdpClient::test() {
+    std::unique_lock<std::mutex> lk(m);
+    cv.wait(lk, [this]{return startSend == 1;});
+    std::cout << "teset" << std::endl;
+}
+
+void UdpClient::sendBandWidthMsg(uint8_t *buffer, int &totalPackets, int &totalLen, size_t msgLen) {
+    std::unique_lock<std::mutex> lk(m);
+    while(true){
+        cv.wait(lk, [this]{return startSend == 1 || startSend == -1;});
+        if(startSend == -1){
+            break;
+        }
+        BandwidthTestMsg::update(buffer, Message::genMid(), totalPackets, seeker::Time::microTime());
+        auto sendLen = sendto(fd, buffer, msgLen, 0, (struct sockaddr *)&serverAddr, (socklen_t) sizeof(serverAddr));
+        if(sendLen < 0){
+            E_LOG("send bandWidthmsg error..");
+            throw std::runtime_error("send bandWidthmsg error..");
+        }
+        totalLen += sendLen;
+        totalPackets += 1;
+        startSend = 0;
+    }
+    I_LOG("finsh send..");
+}
+
+
 
 
 

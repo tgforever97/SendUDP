@@ -1,5 +1,5 @@
-#include <seeker/loggerApi.h>
 #include "config.h"
+#include <seeker/loggerApi.h>
 #include "UdpServer.h"
 #include "Message.h"
 
@@ -27,6 +27,7 @@ void UdpServer::freeAll() {
 }
 
 void UdpServer::startServer() {
+    I_LOG("udp server is started...");
     uint8_t buffer[BUFSIZE];
     auto len = sizeof(remAddr);
     for(;;){
@@ -54,6 +55,7 @@ void UdpServer::startServer() {
                 break;
             }
             case MessageType::rttTestMsg: {
+                I_LOG("start to test rtt...");
                 auto sendLen = sendto(fd, buffer, sizeof(buffer), 0, (struct sockaddr *)&remAddr, len);
                 if(sendLen < 0){
                     E_LOG("sendto error:");
@@ -71,6 +73,7 @@ void UdpServer::startServer() {
 }
 
 void UdpServer::bandWidthServer() { //带宽，丢包，抖动
+    I_LOG("start to test bandWidth...");
     uint8_t buffer[BUFSIZE];
     memset(buffer, 0 ,BUFSIZE);
     auto len = sizeof(remAddr);
@@ -102,7 +105,7 @@ void UdpServer::bandWidthServer() { //带宽，丢包，抖动
         BandwidthTestMsg::getTestNum(buffer, testNum);
 
         if(msgType == (uint8_t)MessageType::bandwidthTestMsg){
-            T_LOG("receive a BandwidthTestMsg, testNum={}", testNum);
+            I_LOG("receive a BandwidthTestMsg, testNum={}", testNum);
             recvByte += recvLen;
 
             lastArrivalTime = seeker::Time::currentTime();
@@ -121,10 +124,11 @@ void UdpServer::bandWidthServer() { //带宽，丢包，抖动
             int lossPkt = totalPacket - packetCount;
             int64_t jitter = maxDelay - minDelay;
             I_LOG("bandwidth test report:");
-            I_LOG("[ ID] Transfer    Bandwidth      Jitter   totlaReceivePkt loss/Total");
-            I_LOG("[{}]   {}     {}     {}ms   {}", testId,
+            I_LOG("[ID] Transfer    Bandwidth      Jitter   totlaReceivePkt loss/Total");
+            I_LOG("[{}] {}    {}bytes/s      {}ms     {}       {}", testId,
                   recvByte,
-                  recvByte/(lastArrivalTime - startTime), (double)jitter / 1000,
+                  recvByte*1000/(lastArrivalTime - startTime),
+                  (double)jitter / 1000,
                   packetCount,
                   lossPkt/totalPacket);
             BandwidthReport report(jitter, packetCount, recvByte, testId, Message::genMid());

@@ -36,6 +36,14 @@ private:
     struct sockaddr_in myAddr;
     struct sockaddr_in serverAddr;
     int fd;
+    std::mutex m;
+    std::condition_variable cv;
+    int startSend = 0;
+//    void sendBandWidthMsg(uint8_t *buffer, int &totalPackets, int &totalLen, size_t msgLen);
+
+    void test();
+
+    void sendBandWidthMsg(uint8_t *buffer, int &totalPackets, int &totalLen, size_t msgLen);
 };
 
 #endif //SENDUDP_UDPCLIENT_H

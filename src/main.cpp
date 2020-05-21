@@ -37,7 +37,8 @@ int main(int argc, char* argv[]) {
                 case 'g':
                 case 'G': {
                     int packetSize = 1400;
-                    //todo:start bandwidth test
+                    UdpClient client(host, port);
+                    client.bandWidthClient(bandwidthValue, bandwidthUnit, packetSize, time);
                     break;
                 }
                 default:
