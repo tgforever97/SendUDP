@@ -159,7 +159,7 @@ void UdpClient::bandWidthClient(uint32_t bandwidth, char bandwidthUnit, int pack
     I_LOG("[{}]  {}    {}bytes/s     {}ms   {}/{} ({:.{}f}%)",
           testId,
           totalLen,
-          totalLen/passedTime,
+          totalLen*1000/passedTime,
           (double)report.jitterMicroSec / 1000,
           lossPkt,
           totalPackets,

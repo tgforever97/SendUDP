@@ -124,13 +124,15 @@ void UdpServer::bandWidthServer() { //带宽，丢包，抖动
             int lossPkt = totalPacket - packetCount;
             int64_t jitter = maxDelay - minDelay;
             I_LOG("bandwidth test report:");
-            I_LOG("[ID] Transfer    Bandwidth      Jitter   totlaReceivePkt loss/Total");
-            I_LOG("[{}] {}    {}bytes/s      {}ms     {}       {}", testId,
+            I_LOG("[{}]  {}    {}bytes/s     {}ms   {}/{} ({:.{}f}%)",
+                  testId,
                   recvByte,
                   recvByte*1000/(lastArrivalTime - startTime),
                   (double)jitter / 1000,
+                  lossPkt,
                   packetCount,
-                  lossPkt/totalPacket);
+                  (double)100 * lossPkt / totalPacket,
+                  4);
             BandwidthReport report(jitter, packetCount, recvByte, testId, Message::genMid());
             Message::sendMsg(report, fd, (struct sockaddr *)&remAddr, len);
             break;
