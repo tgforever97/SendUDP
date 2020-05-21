@@ -45,12 +45,12 @@ int main(int argc, char* argv[]) {
                     E_LOG("params error, bandwidth unit should only be B, K, M or G");
                     return -1;
             }
-        } else {
+        }else {
             UdpClient client(host, port);
             client.rttClient(10, 64);
         }
 
-    } else {
+    }else {
         E_LOG("params error, it should not happen.");
     }
     return 0;

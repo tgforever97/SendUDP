@@ -130,9 +130,9 @@ void UdpClient::bandWidthClient(uint32_t bandwidth, char bandwidthUnit, int pack
     auto totalPackets = 0;
     int64_t passedTime = 0;
 
-    auto startTime = seeker::Time::currentTime();
-
     std::thread worker(std::mem_fn(&UdpClient::sendBandWidthMsg), std::ref(*this), sendBuffer, std::ref(totalPackets), std::ref(totalLen), msg.getLength());
+
+    auto startTime = seeker::Time::currentTime();
 
     while(totalPackets < testSeconds * packetsPerSecond){
         {
@@ -141,7 +141,6 @@ void UdpClient::bandWidthClient(uint32_t bandwidth, char bandwidthUnit, int pack
         }
         cv.notify_one();
         std::this_thread::sleep_for(std::chrono::milliseconds(packetsSendInterval));
-        D_LOG("startTime {}", seeker::Time::currentTime());
     }
     passedTime = seeker::Time::currentTime() - startTime;
 
@@ -154,7 +153,7 @@ void UdpClient::bandWidthClient(uint32_t bandwidth, char bandwidthUnit, int pack
     }
     BandwidthReport report(buffer);
     I_LOG("bandwidth test report:");
-    I_LOG("[ ID] Transfer    Bandwidth     Jitter   Lost/Total Datagrams");
+    I_LOG("[ID] Transfer    Bandwidth     Jitter   Lost/Total Datagrams");
     int lossPkt = totalPackets - report.receivedPkt;
     I_LOG("[{}]  {}    {}bytes/s     {}ms   {}/{} ({:.{}f}%)",
           testId,
@@ -197,7 +196,6 @@ void UdpClient::sendBandWidthMsg(uint8_t *buffer, int &totalPackets, int &totalL
         totalPackets += 1;
         startSend = 0;
     }
-    I_LOG("finsh send..");
 }
 
 
